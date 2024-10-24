@@ -62,6 +62,7 @@ bool myDup = false;
 double position = 30;
 double speed = 4.0;  
 int request_id = 1;  
+int send_ct = 1; 
 
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
@@ -131,21 +132,29 @@ void subscribeToTopics() {
 }
 
 
+void publishInsulin() {
 
-void requestSpeed() {
-/*
-auto msg = mqtt::make_message("tb-proxy/CAR_GATEWAY/attributes/request/" + to_string(request_id++),
-                                  "{\"sharedKeys\":\"Speed\"}");
-    msg->set_qos(QOS);
-    client.publish(msg)->wait();
-    cout << "Request for speed published: " << request_id << endl;
-*/
+  String payload = "Test sending insulin";
+  payload += String(send_ct); 
+  send_ct++; 
+  Serial.print("Sending message to the following topic: ");
+  Serial.println(OpenAPS_topic1);
+
+  Serial.print("with the following payload: "); 
+  Serial.println(payload);
+
+  mqttClient.beginMessage(OpenAPS_topic1, payload.length(), retained, qos, myDup);
+  mqttClient.print(payload);
+  mqttClient.endMessage();
+
+}
 
 
-  String speedRequestPayload = "{\"sharedKeys\":\"Speed\"}";
-  String speedRequestFullTopic = String(speedRequestTopic) + request_id++;
+void sendInsulin() {
+  String speedRequestPayload = "testing";
+  String speedRequestFullTopic = String(OpenAPS_topic1) + request_id++;
 
-  Serial.print("Requesting the following speed with the following ID: ");
+  Serial.print("Sending insulin levels to the following ID ");
   Serial.println(request_id);
 
   mqttClient.beginMessage(speedRequestFullTopic.c_str(), speedRequestPayload.length(), retained, qos, myDup);
@@ -333,6 +342,7 @@ void setup() {
 void loop() {
     // Empty. Tasks are handled by FreeRTOS
     mqttClient.poll();
-    unsigned long currentMillis = millis();
+    publishInsulin(); 
+
 
 }
