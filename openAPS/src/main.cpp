@@ -24,7 +24,7 @@ const char ssid[] = "YanfuOu";
 const char pass[] = "yanfuthebest";
 
 //connecting to the broker
-const char broker[] = "tcp://mqtt-dev.precise.seas.upenn.edu";
+const char broker[] = "mqtt-dev.precise.seas.upenn.edu";
 const int port = 1883;
 
 const char inTopic[] = "tb-proxy/CAR_GATEWAY/attributes";
@@ -33,8 +33,9 @@ const char topic1[] = "tb-proxy/CAR_GATEWAY/gateway/connect";
 const char topic2[] = "tb-proxy/CAR_GATEWAY/gateway/attributes";
 const char speedRequestTopic[] = "tb-proxy/CAR_GATEWAY/attributes/request/";
 
-const char OpenAPS_topic1[] = "cis541-2024/yanfuou2/insulin-pump-openaps";
-const char OpenAPS_topic3[] = "cis541-2024/yanfuou2/cgm-openaps"; 
+const char OpenAPS_topic1[] = "cis541-2024/Team04/insulin-pump-openaps";
+const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
+const char OpenAPS_topic3_subtopic[] = "cis541-2024/Team04/cgm-openaps/+";
 
 
 const long positionUpdateInterval = 1000;  
@@ -77,17 +78,6 @@ void connectToWiFi() {
 }
 
 void connectToMQTT() {
-  /*
-  try {
-        cout << "Connecting..." << endl;
-        auto connTok = client.connect(connOpts);
-        cout << "Waiting for connect..." << endl;
-        connTok->wait();
-    } catch (const mqtt::exception& ex) {
-        cerr << "\nERROR: Unable to connect, " << ex << endl;
-        exit(1);
-    }
-  */
   mqttClient.setId("clientId");
   mqttClient.setUsernamePassword("cis541-2024", "cukwy2-geNwit-puqced");
   mqttClient.setCleanSession(false);
@@ -96,10 +86,11 @@ void connectToMQTT() {
   mqttClient.print(willPayload);
   mqttClient.endWill();
 
-  if (!mqttClient.connect(broker, port)) {
+  while (!mqttClient.connect(broker, port)) {
     Serial.print("MQTT connection failed! Error code = ");
     Serial.println(mqttClient.connectError());
-    while (1);  
+    connectToMQTT(); 
+    delay(3000);  
   }
   Serial.println("You're connected to the MQTT broker!\n");
 }
@@ -129,27 +120,14 @@ auto msg = mqtt::make_message("tb-proxy/CAR_GATEWAY/gateway/connect", "{\"device
 }
 
 void subscribeToTopics() {
-
-/*
-  void subscription_topics(mqtt::async_client& client) {
-    client.subscribe("tb-proxy/CAR_GATEWAY/attributes/response/+", QOS);
-    client.subscribe("tb-proxy/CAR_GATEWAY/attributes", QOS);
-    cout << "Subscribed to topics." << endl;
-*/
+  Serial.print("Subscribing to the following topic: ");
+  Serial.println(OpenAPS_topic3);
+  mqttClient.subscribe(OpenAPS_topic3, 1);
 
   Serial.print("Subscribing to the following topic: ");
+  Serial.println(OpenAPS_topic3_subtopic);
+  mqttClient.subscribe(OpenAPS_topic3_subtopic, 1);
 
-  Serial.println(OpenAPS_topic1);
-
-  mqttClient.subscribe(OpenAPS_topic1, 1);
-
-  Serial.print("Subscribing to the following topic: ");
-
-/* 
-  Serial.println(subTopic);
-
-  mqttClient.subscribe(subTopic, 1);
-*/ 
 }
 
 
@@ -189,20 +167,6 @@ void onMqttMessage(int messageSize) {
     payload += (char)mqttClient.read();
   }
   Serial.println(payload);
-
-  int speedPos = payload.indexOf("Here is the speed");
-  if (speedPos != -1) {
-    int colonPos = payload.indexOf(':', speedPos);
-    int endPos = payload.indexOf('}', colonPos);
-    String speedStr = payload.substring(colonPos + 1, endPos);
-    double newSpeed = speedStr.toDouble();
-    if (newSpeed >= 1.0 && newSpeed <= 10.0) {
-      speed = newSpeed;
-      Serial.print("Speed updated to: ");
-      Serial.println(speed);
-    }
-  }
-
   Serial.println();
 }
 
@@ -225,12 +189,13 @@ struct InsulinTreatment {
 
 
 // Global variables
-OpenAPS* openAPS;
+//OpenAPS* openAPS;
 volatile float current_BG = 0.0;
 volatile long current_time = 0;
 volatile bool newBGData = false;
 volatile bool newInsulinTreatment = false;
 volatile bool attributeReceived = false;
+
 
 
 class OpenAPS {
@@ -254,14 +219,39 @@ public:
     std::pair<float, float> insulin_calculations(long t) {
         // TODO: Implement insulin calculations
         // Return pair of total_activity and total_iob
-        float peak_time = DIA* 75/180;
-        float peak_value = 0.5 * DIA * t
-        return (peak_time, peak_value) 
+        float total_activity = 0;
+        float total_iob = 0;
+        for (InsulinTreatment treatment : insulin_treatments) {
+            long time_since_treatment = t - treatment.time;
+            float peak_time = (DIA * 75) / 180;
+            float peak_val = (2.0 * treatment.amount) / (treatment.duration * peak_time);
+
+            float activity = 0.0;
+            if (time_since_treatment >= 0 && time_since_treatment <= treatment.duration) {
+                if (time_since_treatment <= peak_time) {
+                    activity = (peak_val / peak_time) * time_since_treatment;
+                }
+                else {
+                    float timeAfterPeak = time_since_treatment - peak_time; 
+                    activity = peak_val - (peak_val / (treatment.duration - peak_time)) * timeAfterPeak;
+                }
+                total_activity += activity;
+                float percent_remaining = (float)(treatment.duration - time_since_treatment)/ treatment.duration;
+                total_iob += percent_remaining * treatment.amount; 
+            }
+        }
+
+        return {total_activity, total_iob};
     }
+
+    
+    
 
     std::pair<float, float> get_BG_forecast(float current_BG, float activity, float IOB) {
         // TODO: Implement blood glucose forecasting
         // Return pair of naive_eventual_BG and eventual_BG
+        return {99.99, 88.88};
+
     }
 
     float get_basal_rate(long t, float current_BG) {
@@ -270,7 +260,9 @@ public:
         // Apply control logic based on BG levels
         // Update prev_BG, prev_basal_rate, and add new insulin treatment
         // Return calculated basal_rate
+        return 77.7;
     }
+    
 };
 
 
@@ -311,8 +303,11 @@ void setup() {
 
     //I need to subscribe to topic 3 and publish to topic 1
 
-    // Subscrie to relevant topics
+    // Subscrie to the CGM topic
     subscribeToTopics();
+
+    // Set callback for incoming messages
+    mqttClient.onMessage(onMqttMessage);
 
     /*
     // Register Car device
@@ -337,5 +332,7 @@ void setup() {
 
 void loop() {
     // Empty. Tasks are handled by FreeRTOS
+    mqttClient.poll();
+    unsigned long currentMillis = millis();
 
 }
