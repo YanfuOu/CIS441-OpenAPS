@@ -20,28 +20,28 @@ using namespace std;
 const string MQTT_USERNAME = "cis541-2024";
 const string MQTT_PASSWORD = "cukwy2-geNwit-puqced";
 */
-const char ssid[] = "YanfuOu";
-const char pass[] = "yanfuthebest";
+const char ssid[] = "AirPennNet-Device";
+const char pass[] = "penn1740wifi";
 
 //connecting to the broker
 const char broker[] = "mqtt-dev.precise.seas.upenn.edu";
 const int port = 1883;
 
-const char inTopic[] = "tb-proxy/CAR_GATEWAY/attributes";
-const char subTopic[] = "tb-proxy/CAR_GATEWAY/attributes/response/+";
-const char topic1[] = "tb-proxy/CAR_GATEWAY/gateway/connect";
-const char topic2[] = "tb-proxy/CAR_GATEWAY/gateway/attributes";
-const char speedRequestTopic[] = "tb-proxy/CAR_GATEWAY/attributes/request/";
+// const char inTopic[] = "tb-proxy/CAR_GATEWAY/attributes";
+// const char subTopic[] = "tb-proxy/CAR_GATEWAY/attributes/response/+";
+// const char topic1[] = "tb-proxy/CAR_GATEWAY/gateway/connect";
+// const char topic2[] = "tb-proxy/CAR_GATEWAY/gateway/attributes";
+// const char speedRequestTopic[] = "tb-proxy/CAR_GATEWAY/attributes/request/";
 
 const char OpenAPS_topic1[] = "cis541-2024/Team04/insulin-pump-openaps";
-const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
-const char OpenAPS_topic3_subtopic[] = "cis541-2024/Team04/cgm-openaps/+";
+//const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
+// const char OpenAPS_topic3_subtopic[] = "cis541-2024/Team04/+";
 
 
-const long positionUpdateInterval = 1000;  
-const long speedRequestInterval = 5000;    
-unsigned long previousMillis = 0;
-unsigned long previousSpeedRequestMillis = 0;
+// const long positionUpdateInterval = 1000;  
+// const long speedRequestInterval = 5000;    
+// unsigned long previousMillis = 0;
+// unsigned long previousSpeedRequestMillis = 0;
 
 /*
 auto connOpts = mqtt::connect_options_builder()
@@ -79,13 +79,13 @@ void connectToWiFi() {
 }
 
 void connectToMQTT() {
-  mqttClient.setId("clientId");
+  //mqttClient.setId("clientId");
   mqttClient.setUsernamePassword("cis541-2024", "cukwy2-geNwit-puqced");
-  mqttClient.setCleanSession(false);
+  //mqttClient.setCleanSession(false);
 
-  mqttClient.beginWill(topic1, willPayload.length(), willRetain, willQos);
-  mqttClient.print(willPayload);
-  mqttClient.endWill();
+  //mqttClient.beginWill(topic1, willPayload.length(), willRetain, willQos);
+  //mqttClient.print(willPayload);
+  //mqttClient.endWill();
 
   while (!mqttClient.connect(broker, port)) {
     Serial.print("MQTT connection failed! Error code = ");
@@ -96,38 +96,41 @@ void connectToMQTT() {
   Serial.println("You're connected to the MQTT broker!\n");
 }
 
-void registerDevice() {
-/*
-auto msg = mqtt::make_message("tb-proxy/CAR_GATEWAY/gateway/connect", "{\"device\": \"" + DEVICE_ID + "\"}"); 
-    msg->set_qos(QOS); 
-    client.publish(msg)->wait();
-    cout << "Device registered." << endl;
-*/
+// void registerDevice() {
+// /*
+// auto msg = mqtt::make_message("tb-proxy/CAR_GATEWAY/gateway/connect", "{\"device\": \"" + DEVICE_ID + "\"}"); 
+//     msg->set_qos(QOS); 
+//     client.publish(msg)->wait();
+//     cout << "Device registered." << endl;
+// */
 
-  String payload = "{\"device\":\"3141\"}";
-  Serial.print("Sending message to the following topic: ");
+//   String payload = "{\"device\":\"3141\"}";
+//   Serial.print("Sending message to the following topic: ");
 
-  Serial.println(topic1);
+//   Serial.println(topic1);
   
-  Serial.println(payload);
+//   Serial.println(payload);
 
-  mqttClient.beginMessage(topic1, payload.length(), retained, qos, myDup);
+//   mqttClient.beginMessage(topic1, payload.length(), retained, qos, myDup);
 
-  mqttClient.print(payload);
+//   mqttClient.print(payload);
 
-  mqttClient.endMessage();
+//   mqttClient.endMessage();
 
-  Serial.println();
-}
+//   Serial.println();
+// }
 
 void subscribeToTopics() {
+    const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
   Serial.print("Subscribing to the following topic: ");
-  Serial.println(OpenAPS_topic3);
+  Serial.println(OpenAPS_topic3); 
   mqttClient.subscribe(OpenAPS_topic3, 1);
 
+    /* 
   Serial.print("Subscribing to the following topic: ");
   Serial.println(OpenAPS_topic3_subtopic);
   mqttClient.subscribe(OpenAPS_topic3_subtopic, 1);
+  */
 
 }
 
@@ -277,9 +280,9 @@ public:
     float get_basal_rate(long t, float current_BG) {
       // get calculations from previous functions
       std::pair<float, float> calculations = insulin_calculations(t);
-      float total_activity = calcuations.first;
+      float total_activity = calculations.first;
       float total_iob = calculations.second;
-      std::pair<float, float> bg_forecast = get_BG_forecast(current_BG, activity, total_iob);
+      std::pair<float, float> bg_forecast = get_BG_forecast(current_BG, total_activity, total_iob);
       float naive_eventual_BG = bg_forecast.first;
       float eventual_BG = bg_forecast.second;
 
@@ -291,10 +294,10 @@ public:
         if (naive_eventual_BG < 40) {
           basal_rate = 0;
         }
-        float insulinReq = 2 * (eventual_BG - target) / ISF;
+        float insulinReq = 2 * (eventual_BG - target_BG) / ISF;
         basal_rate = prev_basal_rate + (insulinReq / DIA);
-      } else if (eventual_BG > target) {
-        float insulinReq = 2 * (eventual_BG - target) / ISF;
+      } else if (eventual_BG > target_BG) {
+        float insulinReq = 2 * (eventual_BG - target_BG) / ISF;
         basal_rate = prev_basal_rate + (insulinReq / DIA);
       }
 
@@ -367,7 +370,7 @@ void setup() {
 void loop() {
     // Empty. Tasks are handled by FreeRTOS
     mqttClient.poll();
-    //mqttClient.onMessage(onMqttMessage);
+    mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
 
 
