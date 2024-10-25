@@ -206,14 +206,16 @@ void TaskMQTT(void *pvParameters) {
         payload += (char)mqttClient.read();
       }
       Serial.println(payload);
+      // parsing the payload to get blood glucose and time
+
+      // set global variables for global glucse and time
 
       Serial.println();
     }
 }
 
 void TaskOpenAPS(void *pvParameters) {
-    // TODO: Implement OpenAPS task
-    // Process new data, calculate basal rate, and publish to MQTT
+
 }
 
 /*
@@ -228,6 +230,7 @@ void onMqttMessage(int messageSize) {
   while (mqttClient.available()) {
     payload += (char)mqttClient.read();
   }
+
   Serial.println(payload);
   Serial.println();
 }
@@ -283,4 +286,5 @@ void loop() {
     //mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
     TaskMQTT(NULL);
+
 }
