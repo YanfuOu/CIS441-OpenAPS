@@ -185,8 +185,7 @@ public:
     
 };
 
-
-
+OpenAPS oa;
 
 void TaskMQTT(void *pvParameters) {
     // TODO: Implement MQTT task
@@ -215,7 +214,16 @@ void TaskMQTT(void *pvParameters) {
 }
 
 void TaskOpenAPS(void *pvParameters) {
+  // get basal rate
+  float basal_rate = oa.get_basal_rate(current_time, current_BG);
 
+  // publish
+  sprintf(buf, "{\"Glucose\":%.9f}", basal_rate);
+  Serial.println(buf);
+  size_t len = strlen(buf);
+  mqttClient.beginMessage(buf, len, false, 1, false);
+  mqttClient.print(buf);
+  mqttClient.endMessage();
 }
 
 /*
