@@ -150,20 +150,6 @@ void publishInsulin() {
 }
 
 
-void sendInsulin() {
-  String speedRequestPayload = "testing";
-  String speedRequestFullTopic = String(OpenAPS_topic1) + request_id++;
-
-  Serial.print("Sending insulin levels to the following ID ");
-  Serial.println(request_id);
-
-  mqttClient.beginMessage(speedRequestFullTopic.c_str(), speedRequestPayload.length(), retained, qos, myDup);
-  mqttClient.print(speedRequestPayload);
-  mqttClient.endMessage();
-
-  Serial.println();
-}
-
 void onMqttMessage(int messageSize) {
   Serial.print("Receiving a message with topic '");
   Serial.print(mqttClient.messageTopic());
@@ -259,7 +245,20 @@ public:
     std::pair<float, float> get_BG_forecast(float current_BG, float activity, float IOB) {
         // TODO: Implement blood glucose forecasting
         // Return pair of naive_eventual_BG and eventual_BG
-        return {99.99, 88.88};
+            // Constants for the impact of IOB and activity on blood glucose
+        const float IOB_EFFECT = 30.0f; // Each unit of IOB lowers BG by 30 mg/dL (this is an example value)
+        const float ACTIVITY_EFFECT = 0.5f; // Activity lowers BG by 0.5 * activity level (example coefficient)
+
+        // Calculate naive BG based on IOB alone
+        float naive_eventual_BG = current_BG - (IOB * IOB_EFFECT);
+
+        // Calculate the effect of activity on BG
+        float activity_reduction = activity * ACTIVITY_EFFECT;
+
+        // Calculate the eventual BG considering both IOB and activity
+        float eventual_BG = naive_eventual_BG - activity_reduction;
+
+        return std::make_pair(naive_eventual_BG, eventual_BG);
 
     }
 
@@ -296,22 +295,13 @@ void TaskOpenAPS(void *pvParameters) {
 
 void setup() {
     Serial.begin(9600);
-
-
     Serial.print("setting up");
-
-
-
     // Connect to Wifi
     connectToWiFi();
-
-    
-
     // Connect to MQTT
     connectToMQTT();
 
     //I need to subscribe to topic 3 and publish to topic 1
-
     // Subscrie to the CGM topic
     subscribeToTopics();
 
@@ -342,7 +332,8 @@ void setup() {
 void loop() {
     // Empty. Tasks are handled by FreeRTOS
     mqttClient.poll();
-    publishInsulin(); 
+    //mqttClient.onMessage(onMqttMessage);
+    //publishInsulin(); 
 
 
 }
