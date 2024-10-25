@@ -228,9 +228,11 @@ public:
                 }
                 else {
                     float timeAfterPeak = time_since_treatment - peak_time; 
+                    // may be some issues here
                     activity = peak_val - (peak_val / (treatment.duration - peak_time)) * timeAfterPeak;
                 }
                 total_activity += activity;
+                // wot
                 float percent_remaining = (float)(treatment.duration - time_since_treatment)/ treatment.duration;
                 total_iob += percent_remaining * treatment.amount; 
             }
@@ -263,12 +265,35 @@ public:
     }
 
     float get_basal_rate(long t, float current_BG) {
-        // TODO: Implement basal rate calculation
-        // Use insulin_calculations and get_BG_forecast
-        // Apply control logic based on BG levels
-        // Update prev_BG, prev_basal_rate, and add new insulin treatment
-        // Return calculated basal_rate
-        return 77.7;
+      // get calculations from previous functions
+      std::pair<float, float> calculations = insulin_calculations(t);
+      float total_activity = calcuations.first;
+      float total_iob = calculations.second;
+      std::pair<float, float> bg_forecast = get_BG_forecast(current_BG, activity, total_iob);
+      float naive_eventual_BG = bg_forecast.first;
+      float eventual_BG = bg_forecast.second;
+
+      // calculate basal rate (from slides)
+      float basal_rate = 0;
+      if (current_BG < threshold_BG || eventual_BG < threshold_BG) {
+        basal_rate = 0;
+      } else if (eventual_BG < target_BG) {
+        if (naive_eventual_BG < 40) {
+          basal_rate = 0;
+        }
+        float insulinReq = 2 * (eventual_BG - target) / ISF;
+        basal_rate = prev_basal_rate + (insulinReq / DIA);
+      } else if (eventual_BG > target) {
+        float insulinReq = 2 * (eventual_BG - target) / ISF;
+        basal_rate = prev_basal_rate + (insulinReq / DIA);
+      }
+
+      // update prev bg, basal rate, and add new insulin treatment
+      prev_BG = current_BG;
+      prev_basal_rate = basal_rate;
+      InsulinTreatment treatment = {t, basal_rate * DIA, DIA};
+      addInsulinTreatment(treatment);
+      return basal_rate;
     }
     
 };
