@@ -253,20 +253,22 @@ public:
 
         // Calculate naive BG based on IOB alone
         float naive_eventual_BG = current_BG - (IOB * IOB_EFFECT);
-        // float naive_eventual_BG = current_BG - (IOB * ISF);
 
         // Calculate the effect of activity on BG
         float activity_reduction = activity * ACTIVITY_EFFECT;
+
+
+        // Calculate the eventual BG considering both IOB and activity
+        float eventual_BG = naive_eventual_BG - activity_reduction;
+
         /*
+        float naive_eventual_BG = current_BG - (IOB * ISF);
         float predBGI = -activity * ISF * 5;
         float delta = current_BG - prev_BG;
         float deviation = 30 / 5 * (delta - predBGI);
 
         float eventual_BG = naive_eventual_BG - deviation;
         */
-
-        // Calculate the eventual BG considering both IOB and activity
-        float eventual_BG = naive_eventual_BG - activity_reduction;
 
         return std::make_pair(naive_eventual_BG, eventual_BG);
 
