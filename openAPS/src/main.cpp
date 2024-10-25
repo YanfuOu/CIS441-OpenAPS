@@ -5,136 +5,25 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
-#include "arduino_secrets.h"
 
-
-#include <iostream>
-#include <string>
-#include <unistd.h>
-#include <ArduinoMqttClient.h>
-#include <WiFiNINA.h>
-
-using namespace std;
-
-/*
-const string MQTT_USERNAME = "cis541-2024";
-const string MQTT_PASSWORD = "cukwy2-geNwit-puqced";
-*/
+const char MQTT_USERNAME[] = "cis541-2024";
+const char MQTT_PASSWORD[] = "cukwy2-geNwit-puqced";
 const char ssid[] = "AirPennNet-Device";
 const char pass[] = "penn1740wifi";
+char buf[100];
 
 //connecting to the broker
 const char broker[] = "mqtt-dev.precise.seas.upenn.edu";
 const int port = 1883;
 
-// const char inTopic[] = "tb-proxy/CAR_GATEWAY/attributes";
-// const char subTopic[] = "tb-proxy/CAR_GATEWAY/attributes/response/+";
-// const char topic1[] = "tb-proxy/CAR_GATEWAY/gateway/connect";
-// const char topic2[] = "tb-proxy/CAR_GATEWAY/gateway/attributes";
-// const char speedRequestTopic[] = "tb-proxy/CAR_GATEWAY/attributes/request/";
-
 const char OpenAPS_topic1[] = "cis541-2024/Team04/insulin-pump-openaps";
-//const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
-// const char OpenAPS_topic3_subtopic[] = "cis541-2024/Team04/+";
-
-
-// const long positionUpdateInterval = 1000;  
-// const long speedRequestInterval = 5000;    
-// unsigned long previousMillis = 0;
-// unsigned long previousSpeedRequestMillis = 0;
-
-/*
-auto connOpts = mqtt::connect_options_builder()
-        .clean_session()
-        .automatic_reconnect()
-        .user_name(MQTT_USERNAME)
-        .password(MQTT_PASSWORD)
-        .finalize();
-*/
-
-String willPayload = "Issues!!!";
-bool willRetain = true;
-int willQos = 1;
-bool retained = false;
-int qos = 1;
-bool myDup = false;
-
-double position = 30;
-double speed = 4.0;  
-int request_id = 1;  
-int send_ct = 1; 
+const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
 
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 
-void connectToWiFi() {
-  Serial.print("---------Attempting to connect to WPA SSID: ");
-  Serial.println(ssid);
-  Serial.println("--------");
-  while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
-    Serial.print("Attempting to connect to WiFi....");
-    delay(5000);
-  }
-  Serial.println("\nYou're connected to the network! YAYAYAA");
-}
 
-void connectToMQTT() {
-  //mqttClient.setId("clientId");
-  mqttClient.setUsernamePassword("cis541-2024", "cukwy2-geNwit-puqced");
-  //mqttClient.setCleanSession(false);
-
-  //mqttClient.beginWill(topic1, willPayload.length(), willRetain, willQos);
-  //mqttClient.print(willPayload);
-  //mqttClient.endWill();
-
-  while (!mqttClient.connect(broker, port)) {
-    Serial.print("MQTT connection failed! Error code = ");
-    Serial.println(mqttClient.connectError());
-    connectToMQTT(); 
-    delay(3000);  
-  }
-  Serial.println("You're connected to the MQTT broker!\n");
-}
-
-// void registerDevice() {
-// /*
-// auto msg = mqtt::make_message("tb-proxy/CAR_GATEWAY/gateway/connect", "{\"device\": \"" + DEVICE_ID + "\"}"); 
-//     msg->set_qos(QOS); 
-//     client.publish(msg)->wait();
-//     cout << "Device registered." << endl;
-// */
-
-//   String payload = "{\"device\":\"3141\"}";
-//   Serial.print("Sending message to the following topic: ");
-
-//   Serial.println(topic1);
-  
-//   Serial.println(payload);
-
-//   mqttClient.beginMessage(topic1, payload.length(), retained, qos, myDup);
-
-//   mqttClient.print(payload);
-
-//   mqttClient.endMessage();
-
-//   Serial.println();
-// }
-
-void subscribeToTopics() {
-    const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
-  Serial.print("Subscribing to the following topic: ");
-  Serial.println(OpenAPS_topic3); 
-  mqttClient.subscribe(OpenAPS_topic3, 1);
-
-    /* 
-  Serial.print("Subscribing to the following topic: ");
-  Serial.println(OpenAPS_topic3_subtopic);
-  mqttClient.subscribe(OpenAPS_topic3_subtopic, 1);
-  */
-
-}
-
-
+/*
 void publishInsulin() {
 
   String payload = "Test sending insulin";
@@ -151,22 +40,7 @@ void publishInsulin() {
   mqttClient.endMessage();
 
 }
-
-
-void onMqttMessage(int messageSize) {
-  Serial.print("Receiving a message with topic '");
-  Serial.print(mqttClient.messageTopic());
-  Serial.print("', this length ");
-  Serial.print(messageSize);
-  Serial.println(" and this bytes:");
-
-  String payload;
-  while (mqttClient.available()) {
-    payload += (char)mqttClient.read();
-  }
-  Serial.println(payload);
-  Serial.println();
-}
+*/
 
 
 //--------------------open APS part-----------
@@ -314,13 +188,6 @@ public:
 
 
 
-/* 
-void onMqttMessage(int messageSize) {
-    // TODO: Implement MQTT message callback
-    // Handle attribute updates and CGM data
-    // Update openAPS, current_BG, current_time, and flags as needed
-}
-*/ 
 void TaskMQTT(void *pvParameters) {
     // TODO: Implement MQTT task
     // Continuously poll for MQTT messages
@@ -331,32 +198,57 @@ void TaskOpenAPS(void *pvParameters) {
     // Process new data, calculate basal rate, and publish to MQTT
 }
 
+/*
+void onMqttMessage(int messageSize) {
+  Serial.print("Receiving a message with topic '");
+  Serial.print(mqttClient.messageTopic());
+  Serial.print("', this length ");
+  Serial.print(messageSize);
+  Serial.println(" and this bytes:");
+
+  String payload;
+  while (mqttClient.available()) {
+    payload += (char)mqttClient.read();
+  }
+  Serial.println(payload);
+  Serial.println();
+}
+*/
+
 void setup() {
     Serial.begin(9600);
     Serial.print("setting up");
     // Connect to Wifi
-    connectToWiFi();
-    // Connect to MQTT
-    connectToMQTT();
+    Serial.print("---------Attempting to connect to WPA SSID: ");
+    Serial.println(ssid);
+    Serial.println("--------");
+    while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
+      Serial.print("Attempting to connect to WiFi....");
+      delay(5000);
+    }
+    Serial.println("\nYou're connected to the network! YAYAYAA");
+
+    mqttClient.setUsernamePassword(MQTT_USERNAME, MQTT_PASSWORD);
+
+    if (!mqttClient.connect(broker, port)) {
+      Serial.print("MQTT connection failed! Error code = ");
+      Serial.println(mqttClient.connectError());
+
+      while (1);
+    }
+    Serial.println("You're connected to the MQTT broker!\n");
 
     //I need to subscribe to topic 3 and publish to topic 1
     // Subscrie to the CGM topic
-    subscribeToTopics();
+    Serial.print("Subscribing to: ");
+    Serial.println(OpenAPS_topic3);
+    int ret = mqttClient.subscribe(OpenAPS_topic3, 1);
+    sprintf(buf, "%d", ret);
+    Serial.println(buf);
+
+    // xTaskCreate(TaskMQTT, "Task1", 1024, NULL, 1, NULL);
 
     // Set callback for incoming messages
-    mqttClient.onMessage(onMqttMessage);
-
-    /*
-    // Register Car device
-    registerDevice();
-
-
-
-    // Set callback for incoming messages
-    mqttClient.onMessage(onMqttMessage);
-
-    */
-
     // TODO: Implement setup function
     // Initialize Serial, WiFi, MQTT, OpenAPS, mutex, and tasks
     // Subscribe to necessary MQTT topics
@@ -369,9 +261,25 @@ void setup() {
 
 void loop() {
     // Empty. Tasks are handled by FreeRTOS
-    mqttClient.poll();
-    mqttClient.onMessage(onMqttMessage);
+    //mqttClient.poll();
+    //mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
+    int messageSize = mqttClient.parseMessage();
+    if (messageSize) {
+      // we received a message, print out the topic and contents
+      Serial.print("Received a message with topic '");
+      Serial.print(mqttClient.messageTopic());
+      Serial.print("', length ");
+      Serial.print(messageSize);
+      Serial.println(" bytes:");
 
+      // use the Stream interface to print the contents
+      String payload = "";
+      while (mqttClient.available()) {
+        payload += (char)mqttClient.read();
+      }
+      Serial.println(payload);
 
+      Serial.println();
+    }
 }
