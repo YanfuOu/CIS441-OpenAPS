@@ -191,6 +191,24 @@ public:
 void TaskMQTT(void *pvParameters) {
     // TODO: Implement MQTT task
     // Continuously poll for MQTT messages
+    int messageSize = mqttClient.parseMessage();
+    if (messageSize) {
+      // we received a message, print out the topic and contents
+      Serial.print("Received a message with topic '");
+      Serial.print(mqttClient.messageTopic());
+      Serial.print("', length ");
+      Serial.print(messageSize);
+      Serial.println(" bytes:");
+
+      // use the Stream interface to print the contents
+      String payload = "";
+      while (mqttClient.available()) {
+        payload += (char)mqttClient.read();
+      }
+      Serial.println(payload);
+
+      Serial.println();
+    }
 }
 
 void TaskOpenAPS(void *pvParameters) {
@@ -264,22 +282,5 @@ void loop() {
     //mqttClient.poll();
     //mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
-    int messageSize = mqttClient.parseMessage();
-    if (messageSize) {
-      // we received a message, print out the topic and contents
-      Serial.print("Received a message with topic '");
-      Serial.print(mqttClient.messageTopic());
-      Serial.print("', length ");
-      Serial.print(messageSize);
-      Serial.println(" bytes:");
-
-      // use the Stream interface to print the contents
-      String payload = "";
-      while (mqttClient.available()) {
-        payload += (char)mqttClient.read();
-      }
-      Serial.println(payload);
-
-      Serial.println();
-    }
+    TaskMQTT(NULL);
 }
