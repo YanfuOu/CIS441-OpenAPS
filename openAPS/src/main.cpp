@@ -5,6 +5,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
+#include <string.h>
 
 const char MQTT_USERNAME[] = "cis541-2024";
 const char MQTT_PASSWORD[] = "cukwy2-geNwit-puqced";
@@ -18,6 +19,8 @@ const int port = 1883;
 
 const char OpenAPS_topic1[] = "cis541-2024/Team04/insulin-pump-openaps";
 const char OpenAPS_topic3[] = "cis541-2024/Team04/cgm-openaps"; 
+const char patient_profile_topic1[] = "tb-proxy/8yj0bip0cpgcurdbgzry/attributes/request/1";
+const char patient_profile_topic2[] = "tb-proxy/8yj0bip0cpgcurdbgzry/attributes/response/1";
 
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
@@ -252,7 +255,44 @@ void onMqttMessage(int messageSize) {
 }
 */
 
+std::vector<InsulinTreatment> extract(String str) {
+  int indexOfBolus = str.indexOf("bolus_insulins");
+  String bolusSub = str.substring(indexOfBolus);
+  int bracket1 = bolusSub.indexOf("[");
+  int bracket2 = bolusSub.indexOf("]");
+
+  std::vector<InsulinTreatment> res;
+  String bolusArr = str.substring(bracket1, bracket2);
+  bolusArr = bolusArr.substring(bolusArr.indexOf("{"));
+
+  int idxOfTime = bolusArr.indexOf("time");
+  int idxOfDose = bolusArr.indexOf("dose");
+  int idxOfDuration = bolusArr.indexOf("duration");
+
+  String curr = bolusArr;
+  while (idxOfTime != -1) {
+    InsulinTreatment *it;
+    (*it).time = curr.substring(idxOfTime + 7, curr.indexOf(",")).toInt();
+    (*it).amount = curr.substring(idxOfDose + 7, curr.indexOf(",")).toInt();
+    (*it).duration = curr.substring(idxOfDuration + 11, curr.indexOf("}")).toInt();
+    res.push_back(*it);
+    curr = curr.substring(curr.indexOf("{"));
+    idxOfTime = curr.indexOf("time");
+    idxOfDose = curr.indexOf("dose");
+    idxOfDuration = curr.indexOf("duration");
+  }
+  return res;
+}
+
 void setup() {
+  String s = R"({"shared":{"PatientProfile":{"diabetic":true,"meals":[{"time":450,"duration":90,"carbs":360},{"time":750,"duration":120,"carbs":360},{"time":930,"duration":90,"carbs":180},{"time":1110,"duration":150,"carbs":420}],"bolus_insulins":[{"time":450,"dose":36,"duration":30},{"time":750,"dose":36,"duration":30},{"time":930,"dose":18,"duration":30},{"time":1110,"dose":42,"duration":30}],"bergman_param":{"gamma":1.0E-7},"sim_settings":{"disp_interval":0.3,"simu_interval":5,"simu_length":300,"init_state":{"G0":110,"X0":0,"I0":15}}}}})";
+  std::vector<InsulinTreatment> v = extract(s);
+  for (InsulinTreatment it : v) {
+    Serial.println(it.amount);
+    Serial.println(it.duration);
+    Serial.println(it.time);
+  }
+  /*
     Serial.begin(9600);
     Serial.print("setting up");
     // Connect to Wifi
@@ -283,6 +323,31 @@ void setup() {
     sprintf(buf, "%d", ret);
     Serial.println(buf);
 
+    mqttClient.subscribe(patient_profile_topic2, 1);
+    String payload = "{\"sharedKeys\": \"PatientProfile\"}";
+    mqttClient.beginMessage(patient_profile_topic1, payload.length(), false, 1, false);
+    mqttClient.print(payload);
+    mqttClient.endMessage();
+
+
+    int messageSize = mqttClient.parseMessage();
+    if (messageSize) {
+      // we received a message, print out the topic and contents
+      Serial.print("Received a message with topic '");
+      Serial.print(mqttClient.messageTopic());
+      Serial.print("', length ");
+      Serial.print(messageSize);
+      Serial.println(" bytes:");
+
+      // use the Stream interface to print the contents
+      while (mqttClient.available()) {
+        Serial.print((char)mqttClient.read());
+      }
+
+      Serial.println();
+    }
+
+
     // xTaskCreate(TaskMQTT, "Task1", 1024, NULL, 1, NULL);
 
     // Set callback for incoming messages
@@ -291,6 +356,7 @@ void setup() {
     // Subscribe to necessary MQTT topics
     // Request virtual patient profile
     //---------------MQTT part ----------
+    */
 }
 
 void loop() {
@@ -298,6 +364,6 @@ void loop() {
     //mqttClient.poll();
     //mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
-    TaskMQTT(NULL);
+    //TaskMQTT(NULL);
     //TaskOpenAPS(NULL);
 }
