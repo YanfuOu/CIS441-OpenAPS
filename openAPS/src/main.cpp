@@ -71,7 +71,7 @@ volatile bool attributeReceived = false;
 
 
 class OpenAPS {
-private:
+  private:
     float ISF = 5;
     int DIA = 90;
     int target_BG = 100;
@@ -80,7 +80,7 @@ private:
     float prev_BG = -1;
     float prev_basal_rate = 0.0;
 
-public:
+  public:
     OpenAPS(std::vector<InsulinTreatment> bolus_insulins) 
         : insulin_treatments(bolus_insulins) {}
 
@@ -117,9 +117,6 @@ public:
 
         return {total_activity, total_iob};
     }
-
-    
-    
 
     std::pair<float, float> get_BG_forecast(float current_BG, float activity, float IOB) {
         // TODO: Implement blood glucose forecasting
@@ -182,9 +179,9 @@ public:
       addInsulinTreatment(treatment);
       return basal_rate;
     }
-    
 };
 
+OpenAPS *oa;
 
 void TaskMQTT(void *pvParameters) {
     // TODO: Implement MQTT task
@@ -224,6 +221,7 @@ void TaskMQTT(void *pvParameters) {
     }
 }
 
+/*
 void TaskOpenAPS(void *pvParameters) {
   // get basal rate
   float basal_rate = oa.get_basal_rate(current_time, current_BG);
@@ -236,6 +234,7 @@ void TaskOpenAPS(void *pvParameters) {
   mqttClient.print(buf);
   mqttClient.endMessage();
 }
+*/
 
 /*
 void onMqttMessage(int messageSize) {
