@@ -71,7 +71,8 @@ volatile bool newBGData = false;
 volatile bool newInsulinTreatment = false;
 volatile bool attributeReceived = false;
 
-
+float dosage_amt = 0.0;
+SemaphoreHandle_t mutex;
 
 class OpenAPS {
   private:
@@ -211,76 +212,83 @@ class OpenAPS {
 OpenAPS *oa;
 
 void TaskMQTT(void *pvParameters) {
-  Serial.println("In task");
-    // TODO: Implement MQTT task
-    // Continuously poll for MQTT messages
-    int messageSize = mqttClient.parseMessage();
-    if (messageSize) {
-      // we received a message, print out the topic and contents
-      Serial.print("Received a message with topic '");
-      Serial.print(mqttClient.messageTopic());
-      Serial.print("', length ");
-      Serial.print(messageSize);
-      Serial.println(" bytes:");
-
-      // use the Stream interface to print the contents
-      String payload = "";
-      while (mqttClient.available()) {
-        payload += (char)mqttClient.read();
-      }
-      Serial.println(payload);
-      // parsing the payload to get blood glucose and time
-      int speedPos = payload.indexOf("Glucose");
-      if (speedPos != -1) {
-        int colonPos = payload.indexOf(':', speedPos);
-        int commaPos = payload.indexOf(',', colonPos);
-        int endPos = payload.indexOf('}', colonPos);
-        String speedStr = payload.substring(colonPos + 2, commaPos);
-        Serial.println("current_BG from payload"); 
-        Serial.println(current_BG);
-        current_BG = speedStr.toFloat();
-        //double newSpeed = speedStr.toDouble();
-        String timeStr = payload.substring(commaPos + 10, endPos);
-        current_time = timeStr.toInt();
-      }
-      Serial.println(current_BG);
-      Serial.println(current_time);
-      // set global variables for global glucse and time
-
-      Serial.println();
+  while(!attributeReceived);
+  while (1) {
+    Serial.println("polling");
+    String payload = "";
+    mqttClient.poll();
+    vTaskDelay(30);
+    while (!mqttClient.available()) {
+      mqttClient.poll();
+      vTaskDelay(30);
     }
+    while (mqttClient.available()) {
+      payload += (char)mqttClient.read();
+    }
+    Serial.println(payload);
+    // parsing the payload to get blood glucose and time
+    int speedPos = payload.indexOf("Glucose");
+    if (speedPos != -1) {
+      Serial.println("in payload parser");
+      int colonPos = payload.indexOf(':', speedPos);
+      int commaPos = payload.indexOf(',', colonPos);
+      int endPos = payload.indexOf('}', colonPos);
+      String speedStr = payload.substring(colonPos + 2, commaPos);
+      String timeStr = payload.substring(commaPos + 10, endPos);
+      current_BG = speedStr.toFloat();
+      current_time = timeStr.toInt();
+    }
+    // int messageSize = mqttClient.parseMessage();
+    // if (messageSize) {
+    //   // we received a message, print out the topic and contents
+    //   Serial.print("Received a message with topic '");
+    //   Serial.print(mqttClient.messageTopic());
+    //   Serial.print("', length ");
+    //   Serial.print(messageSize);
+    //   Serial.println(" bytes:");
+
+    //   // use the Stream interface to print the contents
+    //   String payload = "";
+    //   while (mqttClient.available()) {
+    //     payload += (char)mqttClient.read();
+    //   }
+    //   Serial.println(payload);
+    //   // parsing the payload to get blood glucose and time
+    //   int speedPos = payload.indexOf("Glucose");
+    //   if (speedPos != -1) {
+    //     Serial.println("in payload parser");
+    //     int colonPos = payload.indexOf(':', speedPos);
+    //     int commaPos = payload.indexOf(',', colonPos);
+    //     int endPos = payload.indexOf('}', colonPos);
+    //     String speedStr = payload.substring(colonPos + 2, commaPos);
+    //     String timeStr = payload.substring(commaPos + 10, endPos);
+    //     current_BG = speedStr.toFloat();
+    //     current_time = timeStr.toInt();
+    //   }
+    // }
+    // publish
+    xSemaphoreTake(mutex, portMAX_DELAY);
+    sprintf(buf, "{\"insulin_rate\":%.9f}", dosage_amt);
+    xSemaphoreGive(mutex);
+    Serial.println(buf);
+    size_t len = strlen(buf);
+    mqttClient.beginMessage(OpenAPS_topic1, len, false, 1, false);
+    mqttClient.print(buf);
+    mqttClient.endMessage();
+
+  }
 }
 
 void TaskOpenAPS(void *pvParameters) {
   // get basal rate
-  float basal_rate = (*oa).get_basal_rate(current_time, current_BG) * 90.0;
-
-  // publish
-  sprintf(buf, "{\"insulin_rate\":%.9f}", basal_rate);
-  Serial.println(buf);
-  size_t len = strlen(buf);
-  mqttClient.beginMessage(OpenAPS_topic1, len, false, 1, false);
-  mqttClient.print(buf);
-  mqttClient.endMessage();
-}
-
-/*
-void onMqttMessage(int messageSize) {
-  Serial.print("Receiving a message with topic '");
-  Serial.print(mqttClient.messageTopic());
-  Serial.print("', this length ");
-  Serial.print(messageSize);
-  Serial.println(" and this bytes:");
-
-  String payload;
-  while (mqttClient.available()) {
-    payload += (char)mqttClient.read();
+  while (!attributeReceived);
+  while (1) {
+    xSemaphoreTake(mutex, portMAX_DELAY);
+    dosage_amt = (*oa).get_basal_rate(current_time, current_BG) * 90.0;
+    xSemaphoreGive(mutex);
+    vTaskDelay(1000);
   }
-
-  Serial.println(payload);
-  Serial.println();
 }
-*/
 
 /*
 std::vector<InsulinTreatment> extract(String str) {
@@ -320,12 +328,6 @@ std::vector<InsulinTreatment> extract(String str) {
 void setup() {
   Serial.begin(9600);
 
-  std::vector<InsulinTreatment> v;
-  v.push_back({1110, 42, 30});
-  v.push_back({930, 28, 30});
-  v.push_back({750, 36, 30});
-  v.push_back({450, 36, 30});
-  *oa = OpenAPS(v);
 
 
   Serial.print("setting up");
@@ -357,8 +359,17 @@ void setup() {
   Serial.println(buf);
   Serial.println();
 
-  xTaskCreate(TaskMQTT, "TaskMQTT", 1024, NULL, 1, NULL);
-  xTaskCreate(TaskOpenAPS, "TaskOpenAPS", 1024, NULL, 1, NULL);
+  std::vector<InsulinTreatment> v;
+  v.push_back({1110, 42, 30});
+  v.push_back({930, 28, 30});
+  v.push_back({750, 36, 30});
+  v.push_back({450, 36, 30});
+  *oa = OpenAPS(v);
+  attributeReceived = true;
+
+  mutex = xSemaphoreCreateMutex();
+  xTaskCreate(TaskMQTT, "Task MQTT", 1024, NULL, 1, NULL);
+  xTaskCreate(TaskOpenAPS, "Task OpenAPS", 1024, NULL, 1, NULL);
   vTaskStartScheduler();
 }
     
