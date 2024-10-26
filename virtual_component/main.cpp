@@ -7,7 +7,7 @@
 using namespace std;
 using namespace std::chrono;
 
-const string ADDRESS { "tcp://mqtt-dev.precise.seas.upenn.edu" };
+const string ADDRESS { "mqtt-dev.precise.seas.upenn.edu" };
 const string USERNAME { "cis541-2024" };
 const string PASSWORD { "cukwy2-geNwit-puqced" };
 
@@ -59,17 +59,15 @@ public:
         std::cout << "Sending: " << payload << " to " << OA_CGM_TOPIC << std::endl;
         auto msg = mqtt::make_message(OA_CGM_TOPIC, payload);
         msg->set_qos(QOS);
-        client_.publish(msg)->wait_for(TIMEOUT);
+        client_.publish(msg);
     }
 
     // handle insulin message
     void on_message_insulin(const string& payload) {
         auto msg = mqtt::make_message(INSULIN_TOPIC, payload);
         msg->set_qos(QOS);
-        client_.publish(msg)->wait_for(TIMEOUT);
+        client_.publish(msg);
     }
-
-    
 };
 
 
