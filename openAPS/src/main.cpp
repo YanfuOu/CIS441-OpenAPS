@@ -254,7 +254,7 @@ void onMqttMessage(int messageSize) {
   Serial.println();
 }
 */
-
+/*
 std::vector<InsulinTreatment> extract(String str) {
   int indexOfBolus = str.indexOf("bolus_insulins");
   String bolusSub = str.substring(indexOfBolus);
@@ -271,11 +271,13 @@ std::vector<InsulinTreatment> extract(String str) {
 
   String curr = bolusArr;
   while (idxOfTime != -1) {
-    InsulinTreatment *it;
-    (*it).time = curr.substring(idxOfTime + 7, curr.indexOf(",")).toInt();
-    (*it).amount = curr.substring(idxOfDose + 7, curr.indexOf(",")).toInt();
-    (*it).duration = curr.substring(idxOfDuration + 11, curr.indexOf("}")).toInt();
-    res.push_back(*it);
+    long time = curr.substring(idxOfTime + 7, curr.indexOf(",")).toInt();
+    float dose = curr.substring(idxOfDose + 7, curr.substring(curr.indexOf(",") + 1).indexOf(",")).toDouble();
+    int duration = curr.substring(idxOfDuration + 11, curr.indexOf("}")).toInt();
+    InsulinTreatment it = {
+      time, dose, duration
+    };
+    res.push_back(it);
     curr = curr.substring(curr.indexOf("{"));
     idxOfTime = curr.indexOf("time");
     idxOfDose = curr.indexOf("dose");
@@ -283,15 +285,19 @@ std::vector<InsulinTreatment> extract(String str) {
   }
   return res;
 }
+*/
 
 void setup() {
-  String s = R"({"shared":{"PatientProfile":{"diabetic":true,"meals":[{"time":450,"duration":90,"carbs":360},{"time":750,"duration":120,"carbs":360},{"time":930,"duration":90,"carbs":180},{"time":1110,"duration":150,"carbs":420}],"bolus_insulins":[{"time":450,"dose":36,"duration":30},{"time":750,"dose":36,"duration":30},{"time":930,"dose":18,"duration":30},{"time":1110,"dose":42,"duration":30}],"bergman_param":{"gamma":1.0E-7},"sim_settings":{"disp_interval":0.3,"simu_interval":5,"simu_length":300,"init_state":{"G0":110,"X0":0,"I0":15}}}}})";
+  Serial.begin(9600);
+  Serial.println("hello");
+  /*
   std::vector<InsulinTreatment> v = extract(s);
   for (InsulinTreatment it : v) {
     Serial.println(it.amount);
     Serial.println(it.duration);
     Serial.println(it.time);
   }
+  */
   /*
     Serial.begin(9600);
     Serial.print("setting up");
