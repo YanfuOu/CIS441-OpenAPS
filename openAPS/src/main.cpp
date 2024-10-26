@@ -125,6 +125,7 @@ class OpenAPS {
         // TODO: Implement blood glucose forecasting
         // Return pair of naive_eventual_BG and eventual_BG
             // Constants for the impact of IOB and activity on blood glucose
+        /*
         const float IOB_EFFECT = 30.0f; // Each unit of IOB lowers BG by 30 mg/dL (this is an example value)
         const float ACTIVITY_EFFECT = 0.5f; // Activity lowers BG by 0.5 * activity level (example coefficient)
 
@@ -133,19 +134,18 @@ class OpenAPS {
 
         // Calculate the effect of activity on BG
         float activity_reduction = activity * ACTIVITY_EFFECT;
+    
 
 
         // Calculate the eventual BG considering both IOB and activity
         float eventual_BG = naive_eventual_BG - activity_reduction;
-
-        /*
+        */
         float naive_eventual_BG = current_BG - (IOB * ISF);
-        float predBGI = -activity * ISF * 5;
+        float predBGI = -activity * ISF * 5.0;
         float delta = current_BG - prev_BG;
-        float deviation = 30 / 5 * (delta - predBGI);
+        float deviation = 30.0 / 5.0 * (delta - predBGI);
 
         float eventual_BG = naive_eventual_BG - deviation;
-        */
 
         return std::make_pair(naive_eventual_BG, eventual_BG);
 
@@ -161,18 +161,33 @@ class OpenAPS {
       float eventual_BG = bg_forecast.second;
 
       // calculate basal rate (from slides)
-      float basal_rate = 0;
-      if (current_BG < threshold_BG || eventual_BG < threshold_BG) {
+      float basal_rate = 0.0;
+      Serial.println("GEt basal rate func");
+      current_BG = 170.0;
+      eventual_BG = 175.0; 
+      Serial.println(current_BG);
+      Serial.println(eventual_BG);
+
+
+
+      if (eventual_BG < 50.0) {
         basal_rate = 0;
-      } else if (eventual_BG < target_BG) {
-        if (naive_eventual_BG < 40) {
+        Serial.println("here1");
+
+      } else if (eventual_BG < (float) target_BG) {
+        if (naive_eventual_BG < 40.0) {
+          Serial.println("here2");
           basal_rate = 0;
         }
-        float insulinReq = 2 * (eventual_BG - target_BG) / ISF;
-        basal_rate = prev_basal_rate + (insulinReq / DIA);
+        float insulinReq = 2.0 * (eventual_BG - target_BG) / ISF;
+        basal_rate += insulinReq / (float) DIA;
       } else if (eventual_BG > target_BG) {
-        float insulinReq = 2 * (eventual_BG - target_BG) / ISF;
-        basal_rate = prev_basal_rate + (insulinReq / DIA);
+        float insulinReq = 2.0 * (eventual_BG - target_BG) / ISF / 10.0;
+        Serial.print("insulin req: ");
+        Serial.println(insulinReq);
+        basal_rate += insulinReq / (float) DIA;
+        Serial.println("here3");
+
       }
 
       // update prev bg, basal rate, and add new insulin treatment
@@ -180,6 +195,8 @@ class OpenAPS {
       prev_basal_rate = basal_rate;
       InsulinTreatment treatment = {t, basal_rate * DIA, DIA};
       addInsulinTreatment(treatment);
+      Serial.println("Basal rate");
+      Serial.println(basal_rate);
       return basal_rate;
     }
 };
@@ -187,6 +204,7 @@ class OpenAPS {
 OpenAPS *oa;
 
 void TaskMQTT(void *pvParameters) {
+  Serial.println("In task");
     // TODO: Implement MQTT task
     // Continuously poll for MQTT messages
     int messageSize = mqttClient.parseMessage();
@@ -211,6 +229,8 @@ void TaskMQTT(void *pvParameters) {
         int commaPos = payload.indexOf(',', colonPos);
         int endPos = payload.indexOf('}', colonPos);
         String speedStr = payload.substring(colonPos + 2, commaPos);
+        Serial.println("current_BG from payload"); 
+        Serial.println(current_BG);
         current_BG = speedStr.toDouble();
         //double newSpeed = speedStr.toDouble();
         String timeStr = payload.substring(commaPos + 10, endPos);
@@ -226,7 +246,7 @@ void TaskMQTT(void *pvParameters) {
 
 void TaskOpenAPS(void *pvParameters) {
   // get basal rate
-  float basal_rate = (*oa).get_basal_rate(current_time, current_BG);
+  float basal_rate = (*oa).get_basal_rate(current_time, current_BG) * 90.0;
 
   // publish
   sprintf(buf, "{\"insulin_rate\":%.9f}", basal_rate);
@@ -322,7 +342,6 @@ void setup() {
       while (1);
     }
     Serial.println("You're connected to the MQTT broker!\n");
-    /*
     //I need to subscribe to topic 3 and publish to topic 1
     // Subscrie to the CGM topic
     Serial.print("Subscribing to: ");
@@ -330,30 +349,9 @@ void setup() {
     int ret = mqttClient.subscribe(OpenAPS_topic3, 1);
     sprintf(buf, "%d", ret);
     Serial.println(buf);
-
-    mqttClient.subscribe(patient_profile_topic2, 1);
-    String payload = "{\"sharedKeys\": \"PatientProfile\"}";
-    mqttClient.beginMessage(patient_profile_topic1, payload.length(), false, 1, false);
-    mqttClient.print(payload);
-    mqttClient.endMessage();
-
-
-    int messageSize = mqttClient.parseMessage();
-    if (messageSize) {
-      // we received a message, print out the topic and contents
-      Serial.print("Received a message with topic '");
-      Serial.print(mqttClient.messageTopic());
-      Serial.print("', length ");
-      Serial.print(messageSize);
-      Serial.println(" bytes:");
-
-      // use the Stream interface to print the contents
-      while (mqttClient.available()) {
-        Serial.print((char)mqttClient.read());
-      }
-
       Serial.println();
-    }
+}
+    
 
 
     // xTaskCreate(TaskMQTT, "Task1", 1024, NULL, 1, NULL);
@@ -364,15 +362,13 @@ void setup() {
     // Subscribe to necessary MQTT topics
     // Request virtual patient profile
     //---------------MQTT part ----------
-    */
-}
 
 void loop() {
     // Empty. Tasks are handled by FreeRTOS
     //mqttClient.poll();
     //mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
-    TaskMQTT(NULL);
+    // TaskMQTT(NULL);
     TaskOpenAPS(NULL);
-    delay(500);
+    delay(100);
 }
