@@ -5,12 +5,12 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
-//#include <string.h>
+#include <string>
 
 const char MQTT_USERNAME[] = "cis541-2024";
 const char MQTT_PASSWORD[] = "cukwy2-geNwit-puqced";
-const char ssid[] = "AirPennNet-Device";
-const char pass[] = "penn1740wifi";
+const char ssid[] = "YanfuOu";
+const char pass[] = "yanfuthebest";
 char buf[100];
 
 //connecting to the broker
@@ -290,45 +290,44 @@ void TaskOpenAPS(void *pvParameters) {
   }
 }
 
-/*
-std::vector<InsulinTreatment> extract(String str) {
-  int indexOfBolus = str.indexOf("bolus_insulins");
-  String bolusSub = str.substring(indexOfBolus);
-  int bracket1 = bolusSub.indexOf("[");
-  int bracket2 = bolusSub.indexOf("]");
+std::vector<InsulinTreatment> extract(String s) {
+  std::string str = std::string(s.c_str());
+
+  std::size_t indexOfBolus = str.find("bolus_insulins");
+  std::string bolusSub = str.substr(indexOfBolus);
+  std::size_t bracket1 = bolusSub.find('[');
+  std::size_t bracket2 = bolusSub.find(']');
 
   std::vector<InsulinTreatment> res;
-  String bolusArr = str.substring(bracket1, bracket2);
-  bolusArr = bolusArr.substring(bolusArr.indexOf("{") + 1);
+  std::string bolusArr = bolusSub.substr(bracket1, bracket2 - bracket1 + 1);
+  bolusArr = bolusArr.substr(bolusArr.find('{') + 1);
 
-  int idxOfTime = bolusArr.indexOf("time");
-  int idxOfDose = bolusArr.indexOf("dose");
-  int idxOfDuration = bolusArr.indexOf("duration");
+  std::size_t idxOfTime = bolusArr.find("time");
+  std::size_t idxOfDose = bolusArr.find("dose");
+  std::size_t idxOfDuration = bolusArr.find("duration");
 
-  String curr = bolusArr;
-  while (idxOfTime != -1) {
-    long time = curr.substring(idxOfTime + 7, curr.indexOf(",")).toInt();
-    float dose = curr.substring(idxOfDose + 7, curr.substring(curr.indexOf(",") + 1).indexOf(",")).toDouble();
-    int duration = curr.substring(idxOfDuration + 11, curr.indexOf("}")).toInt();
-    InsulinTreatment it = {
-      time, dose, duration
-    };
+  std::string curr = bolusArr;
+  std::string temp;
+  std::size_t neg1 = -1;
+  while (idxOfTime != neg1) {
+    std::size_t idxOfFirstComma = curr.find(',');
+    std::size_t idxOfSecondComma = curr.find(',', idxOfFirstComma + 1);
+    long time = std::stol(curr.substr(idxOfTime + 6, idxOfFirstComma - idxOfTime - 6));
+    float dose = std::stof(curr.substr(idxOfDose + 6, idxOfSecondComma - idxOfDose - 6));
+    int duration = std::stoi(curr.substr(idxOfDuration + 10, curr.find('}') - idxOfDuration - 10));
+    InsulinTreatment it = InsulinTreatment(time, dose, duration);
     res.push_back(it);
-    curr = curr.substring(curr.indexOf("{") + 1);
-    idxOfTime = curr.indexOf("time");
-    idxOfDose = curr.indexOf("dose");
-    idxOfDuration = curr.indexOf("duration");
+    curr = curr.substr(curr.find('{') + 2);
+    idxOfTime = curr.find("time");
+    idxOfDose = curr.find("dose");
+    idxOfDuration = curr.find("duration");
   }
   return res;
 }
-*/
-
-
 
 void setup() {
   Serial.begin(9600);
-
-
+  while(!Serial);
 
   Serial.print("setting up");
   // Connect to Wifi
@@ -359,11 +358,29 @@ void setup() {
   Serial.println(buf);
   Serial.println();
 
-  std::vector<InsulinTreatment> v;
-  v.push_back({1110, 42, 30});
-  v.push_back({930, 28, 30});
-  v.push_back({750, 36, 30});
-  v.push_back({450, 36, 30});
+  mqttClient.subscribe(patient_profile_topic2, 1);
+  String payload = "{\"sharedKeys\": \"PatientProfile\"}";
+  mqttClient.beginMessage(patient_profile_topic1, payload.length(), false, 1, false);
+  mqttClient.print(payload);
+  mqttClient.endMessage();
+
+  payload = "";
+  while (!mqttClient.available()) {
+      mqttClient.poll();
+      vTaskDelay(30);
+  }
+  while (mqttClient.available()) {
+    payload += (char)mqttClient.read();
+  }
+  std::vector<InsulinTreatment> v = extract(payload);
+  for (InsulinTreatment it : v) {
+    Serial.print(it.time);
+    Serial.print(", ");
+    Serial.print(it.amount);
+    Serial.print(", ");
+    Serial.println(it.duration);
+  }
+
   *oa = OpenAPS(v);
   attributeReceived = true;
 
