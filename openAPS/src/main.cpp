@@ -174,20 +174,30 @@ class OpenAPS {
         basal_rate = 0;
         Serial.println("here1");
 
-      } else if (eventual_BG < (float) target_BG) {
+      } else if (eventual_BG < 100.0) {
         if (naive_eventual_BG < 40.0) {
           Serial.println("here2");
-          basal_rate = 0;
+          basal_rate = 0.0;
         }
-        float insulinReq = 2.0 * (eventual_BG - target_BG) / ISF;
+        Serial.println(basal_rate);
+        float difference = eventual_BG - target_BG;
+        float insulinReq = 2.0 * difference;
+        insulinReq /= ISF;
+        float incr = insulinReq / 90.0;
+        basal_rate += incr;
         basal_rate += insulinReq / (float) DIA;
-      } else if (eventual_BG > target_BG) {
-        float insulinReq = 2.0 * (eventual_BG - target_BG) / ISF / 10.0;
-        Serial.print("insulin req: ");
+      } else if (eventual_BG > 100.0) {
+        float difference = eventual_BG - 100.0;
+        Serial.println(difference);
+        float insulinReq = 2.0 * difference;
         Serial.println(insulinReq);
-        basal_rate += insulinReq / (float) DIA;
-        Serial.println("here3");
-
+        insulinReq = insulinReq / 5.0;
+        Serial.println(insulinReq);
+        insulinReq = insulinReq / 10.0;
+        Serial.println(insulinReq);
+        float incr = insulinReq / 90.0;
+        Serial.println(incr);
+        basal_rate += incr;
       }
 
       // update prev bg, basal rate, and add new insulin treatment
