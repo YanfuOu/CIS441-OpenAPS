@@ -125,7 +125,6 @@ class OpenAPS {
         // TODO: Implement blood glucose forecasting
         // Return pair of naive_eventual_BG and eventual_BG
             // Constants for the impact of IOB and activity on blood glucose
-        /*
         const float IOB_EFFECT = 30.0f; // Each unit of IOB lowers BG by 30 mg/dL (this is an example value)
         const float ACTIVITY_EFFECT = 0.5f; // Activity lowers BG by 0.5 * activity level (example coefficient)
 
@@ -139,13 +138,14 @@ class OpenAPS {
 
         // Calculate the eventual BG considering both IOB and activity
         float eventual_BG = naive_eventual_BG - activity_reduction;
-        */
+       /*
         float naive_eventual_BG = current_BG - (IOB * ISF);
         float predBGI = -activity * ISF * 5.0;
         float delta = current_BG - prev_BG;
         float deviation = 30.0 / 5.0 * (delta - predBGI);
 
         float eventual_BG = naive_eventual_BG - deviation;
+        */
 
         return std::make_pair(naive_eventual_BG, eventual_BG);
 
@@ -163,15 +163,12 @@ class OpenAPS {
       // calculate basal rate (from slides)
       float basal_rate = 0.0;
       Serial.println("GEt basal rate func");
-      current_BG = 170.0;
-      eventual_BG = 175.0; 
       Serial.println(current_BG);
       Serial.println(eventual_BG);
-
-
+      Serial.println(naive_eventual_BG);
 
       if (eventual_BG < 50.0) {
-        basal_rate = 0;
+        basal_rate = 0.0;
         Serial.println("here1");
 
       } else if (eventual_BG < 100.0) {
@@ -180,12 +177,12 @@ class OpenAPS {
           basal_rate = 0.0;
         }
         Serial.println(basal_rate);
-        float difference = eventual_BG - target_BG;
+        float difference = eventual_BG - 50.0;
         float insulinReq = 2.0 * difference;
-        insulinReq /= ISF;
+        insulinReq = insulinReq / 5.0;
         float incr = insulinReq / 90.0;
         basal_rate += incr;
-        basal_rate += insulinReq / (float) DIA;
+        basal_rate += insulinReq / 90.0;
       } else if (eventual_BG > 100.0) {
         float difference = eventual_BG - 100.0;
         Serial.println(difference);
@@ -241,7 +238,7 @@ void TaskMQTT(void *pvParameters) {
         String speedStr = payload.substring(colonPos + 2, commaPos);
         Serial.println("current_BG from payload"); 
         Serial.println(current_BG);
-        current_BG = speedStr.toDouble();
+        current_BG = speedStr.toFloat();
         //double newSpeed = speedStr.toDouble();
         String timeStr = payload.substring(commaPos + 10, endPos);
         current_time = timeStr.toInt();
@@ -331,35 +328,38 @@ void setup() {
   *oa = OpenAPS(v);
 
 
+  Serial.print("setting up");
+  // Connect to Wifi
+  Serial.print("---------Attempting to connect to WPA SSID: ");
+  Serial.println(ssid);
+  Serial.println("--------");
+  while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
+    Serial.print("Attempting to connect to WiFi....");
+    delay(5000);
+  }
+  Serial.println("\nYou're connected to the network! YAYAYAA");
 
-    Serial.print("setting up");
-    // Connect to Wifi
-    Serial.print("---------Attempting to connect to WPA SSID: ");
-    Serial.println(ssid);
-    Serial.println("--------");
-    while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
-      Serial.print("Attempting to connect to WiFi....");
-      delay(5000);
-    }
-    Serial.println("\nYou're connected to the network! YAYAYAA");
+  mqttClient.setUsernamePassword(MQTT_USERNAME, MQTT_PASSWORD);
 
-    mqttClient.setUsernamePassword(MQTT_USERNAME, MQTT_PASSWORD);
+  if (!mqttClient.connect(broker, port)) {
+    Serial.print("MQTT connection failed! Error code = ");
+    Serial.println(mqttClient.connectError());
 
-    if (!mqttClient.connect(broker, port)) {
-      Serial.print("MQTT connection failed! Error code = ");
-      Serial.println(mqttClient.connectError());
+    while (1);
+  }
+  Serial.println("You're connected to the MQTT broker!\n");
+  //I need to subscribe to topic 3 and publish to topic 1
+  // Subscrie to the CGM topic
+  Serial.print("Subscribing to: ");
+  Serial.println(OpenAPS_topic3);
+  int ret = mqttClient.subscribe(OpenAPS_topic3, 1);
+  sprintf(buf, "%d", ret);
+  Serial.println(buf);
+  Serial.println();
 
-      while (1);
-    }
-    Serial.println("You're connected to the MQTT broker!\n");
-    //I need to subscribe to topic 3 and publish to topic 1
-    // Subscrie to the CGM topic
-    Serial.print("Subscribing to: ");
-    Serial.println(OpenAPS_topic3);
-    int ret = mqttClient.subscribe(OpenAPS_topic3, 1);
-    sprintf(buf, "%d", ret);
-    Serial.println(buf);
-      Serial.println();
+  xTaskCreate(TaskMQTT, "TaskMQTT", 1024, NULL, 1, NULL);
+  xTaskCreate(TaskOpenAPS, "TaskOpenAPS", 1024, NULL, 1, NULL);
+  vTaskStartScheduler();
 }
     
 
@@ -375,10 +375,4 @@ void setup() {
 
 void loop() {
     // Empty. Tasks are handled by FreeRTOS
-    //mqttClient.poll();
-    //mqttClient.onMessage(onMqttMessage);
-    //publishInsulin(); 
-    // TaskMQTT(NULL);
-    TaskOpenAPS(NULL);
-    delay(100);
 }
