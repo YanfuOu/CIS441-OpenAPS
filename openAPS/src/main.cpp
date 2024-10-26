@@ -5,7 +5,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <semphr.h>
-#include <string.h>
+//#include <string.h>
 
 const char MQTT_USERNAME[] = "cis541-2024";
 const char MQTT_PASSWORD[] = "cukwy2-geNwit-puqced";
@@ -229,7 +229,7 @@ void TaskOpenAPS(void *pvParameters) {
   float basal_rate = (*oa).get_basal_rate(current_time, current_BG);
 
   // publish
-  sprintf(buf, "{\"Glucose\":%.9f}", basal_rate);
+  sprintf(buf, "{\"insulin_rate\":%.9f}", basal_rate);
   Serial.println(buf);
   size_t len = strlen(buf);
   mqttClient.beginMessage(OpenAPS_topic1, len, false, 1, false);
@@ -254,6 +254,7 @@ void onMqttMessage(int messageSize) {
   Serial.println();
 }
 */
+
 /*
 std::vector<InsulinTreatment> extract(String str) {
   int indexOfBolus = str.indexOf("bolus_insulins");
@@ -263,7 +264,7 @@ std::vector<InsulinTreatment> extract(String str) {
 
   std::vector<InsulinTreatment> res;
   String bolusArr = str.substring(bracket1, bracket2);
-  bolusArr = bolusArr.substring(bolusArr.indexOf("{"));
+  bolusArr = bolusArr.substring(bolusArr.indexOf("{") + 1);
 
   int idxOfTime = bolusArr.indexOf("time");
   int idxOfDose = bolusArr.indexOf("dose");
@@ -278,7 +279,7 @@ std::vector<InsulinTreatment> extract(String str) {
       time, dose, duration
     };
     res.push_back(it);
-    curr = curr.substring(curr.indexOf("{"));
+    curr = curr.substring(curr.indexOf("{") + 1);
     idxOfTime = curr.indexOf("time");
     idxOfDose = curr.indexOf("dose");
     idxOfDuration = curr.indexOf("duration");
@@ -287,19 +288,20 @@ std::vector<InsulinTreatment> extract(String str) {
 }
 */
 
+
+
 void setup() {
   Serial.begin(9600);
-  Serial.println("hello");
-  /*
-  std::vector<InsulinTreatment> v = extract(s);
-  for (InsulinTreatment it : v) {
-    Serial.println(it.amount);
-    Serial.println(it.duration);
-    Serial.println(it.time);
-  }
-  */
-  /*
-    Serial.begin(9600);
+
+  std::vector<InsulinTreatment> v;
+  v.push_back({1110, 42, 30});
+  v.push_back({930, 28, 30});
+  v.push_back({750, 36, 30});
+  v.push_back({450, 36, 30});
+  *oa = OpenAPS(v);
+
+
+
     Serial.print("setting up");
     // Connect to Wifi
     Serial.print("---------Attempting to connect to WPA SSID: ");
@@ -320,7 +322,7 @@ void setup() {
       while (1);
     }
     Serial.println("You're connected to the MQTT broker!\n");
-
+    /*
     //I need to subscribe to topic 3 and publish to topic 1
     // Subscrie to the CGM topic
     Serial.print("Subscribing to: ");
@@ -370,6 +372,7 @@ void loop() {
     //mqttClient.poll();
     //mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
-    //TaskMQTT(NULL);
-    //TaskOpenAPS(NULL);
+    TaskMQTT(NULL);
+    TaskOpenAPS(NULL);
+    delay(500);
 }
