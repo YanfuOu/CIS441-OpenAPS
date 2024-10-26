@@ -185,7 +185,6 @@ public:
     
 };
 
-OpenAPS oa;
 
 void TaskMQTT(void *pvParameters) {
     // TODO: Implement MQTT task
@@ -206,7 +205,19 @@ void TaskMQTT(void *pvParameters) {
       }
       Serial.println(payload);
       // parsing the payload to get blood glucose and time
-
+      int speedPos = payload.indexOf("Glucose");
+      if (speedPos != -1) {
+        int colonPos = payload.indexOf(':', speedPos);
+        int commaPos = payload.indexOf(',', colonPos);
+        int endPos = payload.indexOf('}', colonPos);
+        String speedStr = payload.substring(colonPos + 2, commaPos);
+        current_BG = speedStr.toDouble();
+        //double newSpeed = speedStr.toDouble();
+        String timeStr = payload.substring(commaPos + 10, endPos);
+        current_time = timeStr.toInt();
+      }
+      Serial.println(current_BG);
+      Serial.println(current_time);
       // set global variables for global glucse and time
 
       Serial.println();
@@ -221,7 +232,7 @@ void TaskOpenAPS(void *pvParameters) {
   sprintf(buf, "{\"Glucose\":%.9f}", basal_rate);
   Serial.println(buf);
   size_t len = strlen(buf);
-  mqttClient.beginMessage(buf, len, false, 1, false);
+  mqttClient.beginMessage(OpenAPS_topic1, len, false, 1, false);
   mqttClient.print(buf);
   mqttClient.endMessage();
 }
@@ -283,9 +294,6 @@ void setup() {
     // Subscribe to necessary MQTT topics
     // Request virtual patient profile
     //---------------MQTT part ----------
-
-
-
 }
 
 void loop() {
@@ -294,5 +302,5 @@ void loop() {
     //mqttClient.onMessage(onMqttMessage);
     //publishInsulin(); 
     TaskMQTT(NULL);
-
+    //TaskOpenAPS(NULL);
 }
