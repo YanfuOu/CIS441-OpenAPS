@@ -2,7 +2,7 @@
 
 ## Submission Videos
 
-The screen capture video of the real-time plot on thingsboard is provided as `real_time_plot.MOV` in this directory. The `system_demo.MOV` demonstrates all the components of the system working properly
+The screen capture video of the real-time plot on thingsboard is provided as `real_time_plot.MOV` in this directory. The `system_demo.MOV` demonstrates all the components of the system working properly.
 
 ## How to run the system:
 
