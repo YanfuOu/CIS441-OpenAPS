@@ -1,5 +1,9 @@
 # CIS441-OpenAPS
 
+## Submission Videos
+
+The screen capture video of the real-time plot on thingsboard is provided as `real_time_plot.MOV` in this directory. The `system_demo.MOV` demonstrates all the components of the system working properly
+
 ## How to run the system:
 
 * Run the virtual component using `./main` and the virtual patient using `python main.py` on Codio or your local machine, ensuring all dependencies are installed and the network username and password are correct. Upload the OpenAPS code to the Arduino Nano IoT 33, ensuring the network username and password are correct.
