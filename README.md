@@ -2,7 +2,7 @@
 
 ## How to run the system:
 
-* Run the virtual component using `./main` and the virtual patient using `python main.py` on Codio or your local machine, ensuring all dependencies are installed and the network username and password are correct. Upload the OpenAPS code to the Arduino Nano IoT 33.
+* Run the virtual component using `./main` and the virtual patient using `python main.py` on Codio or your local machine, ensuring all dependencies are installed and the network username and password are correct. Upload the OpenAPS code to the Arduino Nano IoT 33, ensuring the network username and password are correct.
 
 ## Introduction
 Approximately 30% - 40% of T1D patients in the US use insulin pumps. This project aims to simulate all the working parts of an OpenAPS system. Specifically, this project utilizes a Python script running on Codio that simulates a patient's current blood glucose level. The blood glucose level is published to the Virtual CGM, which emulates a Continuous Glucose Monitoring system that works to measure the patient’s glucose level and sends it to the OpenAPS system. The OpenAPS component is responsible for processing the incoming glucose values sent through MQTT. The system performs calculations that predict the appropriate insulin rate needed to reach a certain target. That information is then sent to the Virtual Insulin Pump, where it simulates pumping the calculated insulin amount to the patient. The virtual patient dashboard serves to display the glucose level and insulin rate of the patient, allowing for easy visualization. Additionally, other parameters such as meal intake, and bolus insulin can be adjusted. The details will be broken down into the following components.
